@@ -14,6 +14,7 @@ class FlutterApplePay {
     @required List<PaymentNetwork> paymentNetworks,
     @required String merchantIdentifier,
     @required List<PaymentItem> paymentItems,
+    List<ContactField> contactFields,
   }) async {
     assert(countryCode != null);
     assert(currencyCode != null);
@@ -28,7 +29,8 @@ class FlutterApplePay {
       'currencyCode': currencyCode,
       'paymentItems':
           paymentItems.map((PaymentItem item) => item._toMap()).toList(),
-      'merchantIdentifier': merchantIdentifier
+      'merchantIdentifier': merchantIdentifier,
+      'contactFields': contactFields?.map((item) => item.toString().split('.')[1])?.toList() ?? [],
     };
     if (Platform.isIOS) {
       final dynamic version = await _channel.invokeMethod('', args);
@@ -65,4 +67,11 @@ enum PaymentNetwork {
   discover,
   interac,
   privateLabel
+}
+
+enum ContactField {
+  name,
+  postalAddress,
+  emailAddress,
+  phoneNumber
 }

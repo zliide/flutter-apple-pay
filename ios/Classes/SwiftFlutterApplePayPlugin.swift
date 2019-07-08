@@ -22,6 +22,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         flutterResult = result;
         let parameters = NSMutableDictionary()
         var payments: [PKPaymentNetwork] = []
+        var contactFields: Set<PKContactField> = []
         var items = [PKPaymentSummaryItem]()
         var totalPrice:Double = 0.0
         let arguments = call.arguments as! NSDictionary
@@ -29,6 +30,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         guard let paymentNeworks = arguments["paymentNetworks"] as? [String] else {return}
         guard let countryCode = arguments["countryCode"] as? String else {return}
         guard let currencyCode = arguments["currencyCode"] as? String else {return}
+        guard let fields = arguments["contactFields"] as? [String] else {return}
 
         guard let paymentItems = arguments["paymentItems"] as? [NSDictionary] else {return}
         guard let merchantIdentifier = arguments["merchantIdentifier"] as? String else {return}
@@ -56,8 +58,18 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             payments.append(paymentType.paymentNetwork)
         }
         
+        fields.forEach {
+            
+            guard let field = ContactField(rawValue: $0) else {
+                assertionFailure("No contact field found")
+                return
+            }
+            
+            contactFields.insert(field.pkField)
+        }
+
         parameters["paymentNetworks"] = payments
-        parameters["requiredShippingContactFields"] = [PKContactField.name, PKContactField.postalAddress] as Set
+        parameters["requiredShippingContactFields"] = contactFields
         parameters["merchantCapabilities"] = PKMerchantCapability.capability3DS // optional
         
         parameters["merchantIdentifier"] = merchantIdentifier
@@ -99,14 +111,30 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         var paymentNetwork: PKPaymentNetwork {
             
             switch self {
-                case .mastercard: return PKPaymentNetwork.masterCard
-                case .visa: return PKPaymentNetwork.visa
-                case .amex: return PKPaymentNetwork.amex
-                case .quicPay: return PKPaymentNetwork.quicPay
-                case .chinaUnionPay: return PKPaymentNetwork.chinaUnionPay
-                case .discover: return PKPaymentNetwork.discover
-                case .interac: return PKPaymentNetwork.interac
-                case .privateLabel: return PKPaymentNetwork.privateLabel
+            case .mastercard: return PKPaymentNetwork.masterCard
+            case .visa: return PKPaymentNetwork.visa
+            case .amex: return PKPaymentNetwork.amex
+            case .quicPay: return PKPaymentNetwork.quicPay
+            case .chinaUnionPay: return PKPaymentNetwork.chinaUnionPay
+            case .discover: return PKPaymentNetwork.discover
+            case .interac: return PKPaymentNetwork.interac
+            case .privateLabel: return PKPaymentNetwork.privateLabel
+            }
+        }
+    }
+    enum ContactField: String {
+        case name
+        case postalAddress
+        case emailAddress
+        case phoneNumber
+        
+        var pkField: PKContactField {
+            
+            switch self {
+                case .name: return PKContactField.name
+                case .postalAddress: return PKContactField.postalAddress
+                case .emailAddress: return PKContactField.emailAddress
+                case .phoneNumber: return PKContactField.phoneNumber
             }
         }
     }
