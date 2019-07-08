@@ -27,7 +27,6 @@ class _MyAppState extends State<MyApp> {
         paymentNetworks: [PaymentNetwork.visa, PaymentNetwork.mastercard],
         merchantIdentifier: "merchant.stripeApplePayTest",
         paymentItems: [paymentItems],
-        stripePublishedKey: "pk_test_TYooMQauvdEDq54NiTphI7jx"
       );
       print(platformVersion);
     } on PlatformException {
