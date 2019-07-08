@@ -3,14 +3,14 @@ import UIKit
 import Foundation
 import PassKit
 
-typealias AuthorizationCompletion = (_ payment: String) -> Void
+typealias AuthorizationCompletion = (_ payment: NSDictionary?) -> Void
 typealias AuthorizationViewControllerDidFinish = (_ error : NSDictionary) -> Void
 
 public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAuthorizationViewControllerDelegate {
     var authorizationCompletion : AuthorizationCompletion!
     var authorizationViewControllerDidFinish : AuthorizationViewControllerDidFinish!
     var pkrequest = PKPaymentRequest()
-    var flutterResult: FlutterResult!;
+    var flutterResult: FlutterResult?;
     
     
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -81,7 +81,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         makePaymentRequest(parameters: parameters,  authCompletion: authorizationCompletion, authControllerCompletion: authorizationViewControllerDidFinish)
     }
     
-    func authorizationCompletion(_ payment: String) {
+    func authorizationCompletion(_ payment: NSDictionary?) {
         // success
 //        var result: [String: Any] = [:]
 //
@@ -90,12 +90,18 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
 //        result["shippingContact"] = payment.shippingContact?.emailAddress
 //        result["shippingMethod"] = payment.shippingMethod?.detail
 //
-        flutterResult(payment)
+        if (flutterResult != nil) {
+            flutterResult?(payment)
+            flutterResult = nil
+        }
     }
     
     func authorizationViewControllerDidFinish(_ error : NSDictionary) {
-        //error
-        flutterResult(error)
+        if (flutterResult != nil) {
+            //error
+            flutterResult?(error)
+            flutterResult = nil
+        }
     }
     
     enum PaymentSystem: String {
@@ -183,6 +189,11 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
     }
     
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didAuthorizePayment payment: PKPayment, handler completion: @escaping (PKPaymentAuthorizationResult) -> Void) {
+        let result: NSDictionary = [
+            "transaction": payment.token.transactionIdentifier,
+            "token": payment.token.paymentData.base64EncodedString(),
+        ]
+        authorizationCompletion(result)
         completion(PKPaymentAuthorizationResult(status: .success, errors: nil))
     }
     
@@ -192,8 +203,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             return
         }
         currentViewController.dismiss(animated: true, completion: nil)
-        let error: NSDictionary = ["message": "User closed apple pay", "code": "400"]
-        authorizationViewControllerDidFinish(error)
+        authorizationCompletion(nil)
     }
     
     func makePaymentSummaryItems(itemsParameters: Array<Dictionary <String, Any>>) -> [PKPaymentSummaryItem]? {
