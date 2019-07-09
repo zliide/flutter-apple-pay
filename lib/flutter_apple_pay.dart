@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
@@ -7,6 +6,20 @@ import 'package:meta/meta.dart';
 class FlutterApplePay {
   static const MethodChannel _channel =
       const MethodChannel('flutter_apple_pay');
+
+  static Future<dynamic> canMakePayment({
+    @required List<PaymentNetwork> paymentNetworks,
+  }) async {
+    final Map<String, Object> args = <String, dynamic>{
+      'paymentNetworks':
+          paymentNetworks.map((item) => item.toString().split('.')[1]).toList(),
+    };
+    try {
+      return await _channel.invokeMethod('canMakePayment', args);
+    } catch(e) {
+      return false;
+    }
+  }
 
   static Future<dynamic> makePayment({
     @required String countryCode,
@@ -18,7 +31,7 @@ class FlutterApplePay {
   }) async {
     assert(countryCode != null);
     assert(currencyCode != null);
-    assert(paymentItems != null);
+    assert(paymentNetworks != null);
     assert(merchantIdentifier != null);
     assert(paymentItems != null);
 
@@ -32,12 +45,7 @@ class FlutterApplePay {
       'merchantIdentifier': merchantIdentifier,
       'contactFields': contactFields?.map((item) => item.toString().split('.')[1])?.toList() ?? [],
     };
-    if (Platform.isIOS) {
-      final dynamic version = await _channel.invokeMethod('', args);
-      return version;
-    } else {
-      throw Exception("Not supported operation system");
-    }
+    return await _channel.invokeMethod('makePayment', args);
   }
 }
 

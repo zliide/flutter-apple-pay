@@ -15,7 +15,4 @@ Flutter Apple Pay
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h'
   s.dependency 'Flutter'
-  
-  s.ios.deployment_target = '11.0'
 end
-

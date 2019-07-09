@@ -18,20 +18,24 @@ class _MyAppState extends State<MyApp> {
   }
 
   Future<void> makePayment() async {
-    dynamic platformVersion;
     PaymentItem paymentItems = PaymentItem(label: 'Label', amount: 51.0);
-    try {
-      platformVersion = await FlutterApplePay.makePayment(
-        countryCode: "US",
-        currencyCode: "USD",
-        paymentNetworks: [PaymentNetwork.visa, PaymentNetwork.mastercard],
-        merchantIdentifier: "merchant.stripeApplePayTest",
-        paymentItems: [paymentItems],
-      );
-      print(platformVersion);
-    } on PlatformException {
-      platformVersion = 'Failed to get platform version.';
+    const networks = [PaymentNetwork.visa, PaymentNetwork.mastercard];
+    if(!await FlutterApplePay.canMakePayment(paymentNetworks: networks)) {
+      print('Payment not supported.');
+      return;
     }
+    final payment = await FlutterApplePay.makePayment(
+      countryCode: "US",
+      currencyCode: "USD",
+      paymentNetworks: networks,
+      merchantIdentifier: "merchant.stripeApplePayTest",
+      paymentItems: [paymentItems],
+    );
+    if(payment == null) {
+      print('Payment cancelled.');
+      return;
+    }
+    print(payment);
   }
 
   @override

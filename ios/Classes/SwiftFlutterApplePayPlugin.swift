@@ -19,35 +19,25 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
-        flutterResult = result;
-        let parameters = NSMutableDictionary()
-        var payments: [PKPaymentNetwork] = []
-        var contactFields: Set<PKContactField> = []
-        var items = [PKPaymentSummaryItem]()
-        var totalPrice:Double = 0.0
-        let arguments = call.arguments as! NSDictionary
-        
-        guard let paymentNeworks = arguments["paymentNetworks"] as? [String] else {return}
-        guard let countryCode = arguments["countryCode"] as? String else {return}
-        guard let currencyCode = arguments["currencyCode"] as? String else {return}
-        guard let fields = arguments["contactFields"] as? [String] else {return}
-
-        guard let paymentItems = arguments["paymentItems"] as? [NSDictionary] else {return}
-        guard let merchantIdentifier = arguments["merchantIdentifier"] as? String else {return}
-        
-        for dictionary in paymentItems {
-            guard let label = dictionary["label"] as? String else {return}
-            guard let price = dictionary["amount"] as? Double else {return}
-            let type = PKPaymentSummaryItemType.final
-            
-            totalPrice += price
-            
-            items.append(PKPaymentSummaryItem(label: label, amount: NSDecimalNumber(floatLiteral: price), type: type))
+        if #available(iOS 11, *) {
+            handle11(_:call, result:result)
+        } else {
+            if call.method == "canMakePayment" {
+                result(false)
+            }
+            else if call.method == "makePayment" {
+                let error: NSDictionary = ["message": "User not added some cards", "code": "404"]
+                result(error)
+            }
         }
-        
-        let total = PKPaymentSummaryItem(label: "Total", amount: NSDecimalNumber(floatLiteral:totalPrice), type: .final)
-        items.append(total)
-        
+    }
+    
+    @available(iOS 11, *)
+    public func handle11(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
+        let arguments = call.arguments as! NSDictionary
+        guard let paymentNeworks = arguments["paymentNetworks"] as? [String] else {return}
+        var payments: [PKPaymentNetwork] = []
+
         paymentNeworks.forEach {
             
             guard let paymentType = PaymentSystem(rawValue: $0) else {
@@ -57,28 +47,59 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             
             payments.append(paymentType.paymentNetwork)
         }
-        
-        fields.forEach {
+
+        if call.method == "canMakePayment" {
+            result(PKPaymentAuthorizationViewController.canMakePayments(usingNetworks: payments))
+        }
+        else if call.method == "makePayment" {
+            flutterResult = result;
+            let parameters = NSMutableDictionary()
+            var contactFields: Set<PKContactField> = []
+            var items = [PKPaymentSummaryItem]()
+            var totalPrice:Double = 0.0
             
-            guard let field = ContactField(rawValue: $0) else {
-                assertionFailure("No contact field found")
-                return
+            guard let countryCode = arguments["countryCode"] as? String else {return}
+            guard let currencyCode = arguments["currencyCode"] as? String else {return}
+            guard let fields = arguments["contactFields"] as? [String] else {return}
+
+            guard let paymentItems = arguments["paymentItems"] as? [NSDictionary] else {return}
+            guard let merchantIdentifier = arguments["merchantIdentifier"] as? String else {return}
+            
+            for dictionary in paymentItems {
+                guard let label = dictionary["label"] as? String else {return}
+                guard let price = dictionary["amount"] as? Double else {return}
+                let type = PKPaymentSummaryItemType.final
+                
+                totalPrice += price
+                
+                items.append(PKPaymentSummaryItem(label: label, amount: NSDecimalNumber(floatLiteral: price), type: type))
             }
             
-            contactFields.insert(field.pkField)
-        }
+            let total = PKPaymentSummaryItem(label: "Total", amount: NSDecimalNumber(floatLiteral:totalPrice), type: .final)
+            items.append(total)
+            
+            fields.forEach {
+                
+                guard let field = ContactField(rawValue: $0) else {
+                    assertionFailure("No contact field found")
+                    return
+                }
+                
+                contactFields.insert(field.pkField)
+            }
 
-        parameters["paymentNetworks"] = payments
-        parameters["requiredShippingContactFields"] = contactFields
-        parameters["merchantCapabilities"] = PKMerchantCapability.capability3DS // optional
-        
-        parameters["merchantIdentifier"] = merchantIdentifier
-        parameters["countryCode"] = countryCode
-        parameters["currencyCode"] = currencyCode
-        
-        parameters["paymentSummaryItems"] = items
-        
-        makePaymentRequest(parameters: parameters,  authCompletion: authorizationCompletion, authControllerCompletion: authorizationViewControllerDidFinish)
+            parameters["paymentNetworks"] = payments
+            parameters["requiredShippingContactFields"] = contactFields
+            parameters["merchantCapabilities"] = PKMerchantCapability.capability3DS // optional
+            
+            parameters["merchantIdentifier"] = merchantIdentifier
+            parameters["countryCode"] = countryCode
+            parameters["currencyCode"] = currencyCode
+            
+            parameters["paymentSummaryItems"] = items
+            
+            makePaymentRequest(parameters: parameters,  authCompletion: authorizationCompletion, authControllerCompletion: authorizationViewControllerDidFinish)
+        }
     }
     
     func authorizationCompletion(_ payment: NSDictionary?) {
@@ -104,6 +125,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         }
     }
     
+    @available(iOS 11, *)
     enum PaymentSystem: String {
         case visa
         case mastercard
@@ -128,6 +150,8 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
             }
         }
     }
+
+    @available(iOS 11, *)
     enum ContactField: String {
         case name
         case postalAddress
@@ -145,6 +169,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         }
     }
     
+    @available(iOS 11, *)
     func makePaymentRequest(parameters: NSDictionary, authCompletion: @escaping AuthorizationCompletion, authControllerCompletion: @escaping AuthorizationViewControllerDidFinish) {
         guard let paymentNetworks               = parameters["paymentNetworks"]                 as? [PKPaymentNetwork] else {return}
         guard let requiredShippingContactFields = parameters["requiredShippingContactFields"]   as? Set<PKContactField> else {return}
@@ -188,6 +213,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         return
     }
     
+    @available(iOS 11, *)
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didAuthorizePayment payment: PKPayment, handler completion: @escaping (PKPaymentAuthorizationResult) -> Void) {
         let result: NSDictionary = [
             "transaction": payment.token.transactionIdentifier,
@@ -206,6 +232,7 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
         authorizationCompletion(nil)
     }
     
+    @available(iOS 11, *)
     func makePaymentSummaryItems(itemsParameters: Array<Dictionary <String, Any>>) -> [PKPaymentSummaryItem]? {
         var items = [PKPaymentSummaryItem]()
         var totalPrice:Decimal = 0.0
