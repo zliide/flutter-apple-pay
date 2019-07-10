@@ -3,11 +3,32 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:meta/meta.dart';
 
-class PaymentResult {
-  final String transaction;
-  final String token;
+class PaymentMethod {
+  final String type;
+  final String displayName;
+  final String network;
 
-  PaymentResult(this.transaction, this.token);
+  PaymentMethod(dynamic result)
+      : type = result["type"],
+        displayName = result["displayName"],
+        network = result["network"];
+}
+
+class PaymentToken {
+  final PaymentMethod paymentMethod;
+  final String transactionIdentifier;
+  final String paymentData;
+
+  PaymentToken(dynamic result)
+      : paymentMethod = PaymentMethod(result["paymentMethod"]),
+        transactionIdentifier = result["transactionIdentifier"],
+        paymentData = result["paymentData"];
+}
+
+class PaymentResult {
+  final PaymentToken token;
+
+  PaymentResult(dynamic result) : token = PaymentToken(result["token"]);
 }
 
 class FlutterApplePay {
@@ -28,7 +49,7 @@ class FlutterApplePay {
     }
   }
 
-  static Future<dynamic> makePayment({
+  static Future<PaymentResult> makePayment({
     @required String countryCode,
     @required String currencyCode,
     @required List<PaymentNetwork> paymentNetworks,
@@ -59,7 +80,7 @@ class FlutterApplePay {
     if (result == null) {
       return null;
     }
-    return PaymentResult(result["transaction"], result["token"]);
+    return PaymentResult(result);
   }
 }
 

@@ -215,14 +215,53 @@ public class SwiftFlutterApplePayPlugin: NSObject, FlutterPlugin, PKPaymentAutho
     
     @available(iOS 11, *)
     public func paymentAuthorizationViewController(_ controller: PKPaymentAuthorizationViewController, didAuthorizePayment payment: PKPayment, handler completion: @escaping (PKPaymentAuthorizationResult) -> Void) {
+        let paymentMethod: NSMutableDictionary = [
+            "type": methodTypeToString(payment.token.paymentMethod.type),
+        ]
+        if let displayName = payment.token.paymentMethod.displayName {
+            paymentMethod["displayName"] = displayName
+        }
+        if let network = networkToString(payment.token.paymentMethod.network) {
+            paymentMethod["network"] = network
+        }
+        let token: NSDictionary = [
+            "paymentMethod": paymentMethod,
+            "transactionIdentifier": payment.token.transactionIdentifier,
+            "paymentData": payment.token.paymentData.base64EncodedString(),
+        ]
         let result: NSDictionary = [
-            "transaction": payment.token.transactionIdentifier,
-            "token": payment.token.paymentData.base64EncodedString(),
+            "token": token,
         ]
         authorizationCompletion(result)
         completion(PKPaymentAuthorizationResult(status: .success, errors: nil))
     }
     
+    @available(iOS 11, *)
+    private func methodTypeToString(_ method: PKPaymentMethodType) -> String {
+        switch method {
+        case .debit: return "debit"
+        case .credit: return "credit"
+        case .prepaid: return "prepaid"
+        case .store: return "store"
+        case .unknown: return "unknown"
+        }
+    }
+    @available(iOS 11, *)
+    private func networkToString(_ network: PKPaymentNetwork?) -> String? {
+        switch network {
+        case PKPaymentNetwork.masterCard: return "masterCard"
+        case PKPaymentNetwork.visa: return "visa"
+        case PKPaymentNetwork.amex: return "amex"
+        case PKPaymentNetwork.quicPay: return "quicPay"
+        case PKPaymentNetwork.chinaUnionPay: return "chinaUnionPay"
+        case PKPaymentNetwork.discover: return "discover"
+        case PKPaymentNetwork.interac: return "interac"
+        case PKPaymentNetwork.privateLabel: return "privateLabel"
+        default: return nil
+        }
+    }
+    
+
     public func paymentAuthorizationViewControllerDidFinish(_ controller: PKPaymentAuthorizationViewController) {
         // Dismiss the Apple Pay UI
         guard let currentViewController = UIApplication.shared.keyWindow?.topMostViewController() else {
